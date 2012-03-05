@@ -25,9 +25,14 @@ grails.project.dependency.resolution = {
     }
     dependencies {
 //        build 'org.codehaus.gpars:gpars:0.12'
+          test 'org.objenesis:objenesis:1.2'
+          test 'org.gmock:gmock:0.8.2'
+
     }
     plugins {        
         provided(":webxml:1.4.1") 
+
+        build(":spock:0.6-SNAPSHOT")
         build(":tomcat:$grailsVersion") {
             export = false
         }

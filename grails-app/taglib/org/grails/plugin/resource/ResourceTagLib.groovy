@@ -3,7 +3,7 @@ package org.grails.plugin.resource
 import grails.util.Environment
 import grails.util.GrailsUtil
 
-import org.codehaus.groovy.grails.commons.ConfigurationHolder
+import org.codehaus.groovy.grails.commons.ConfigurationHolder as CH
 import org.apache.commons.io.FilenameUtils
 import org.grails.plugin.resource.util.HalfBakedLegacyLinkGenerator
 
@@ -20,7 +20,8 @@ class ResourceTagLib {
     
     static REQ_ATTR_PREFIX_PAGE_FRAGMENTS = 'resources.plugin.page.fragments'
     static REQ_ATTR_PREFIX_AUTO_DISPOSITION = 'resources.plugin.auto.disposition'
-    
+    private static final ArrayList<String> DEFAULT_PREPROD_ENVIRONMENTS = ['development', 'test']
+
     static writeAttrs( attrs, output) {
         // Output any remaining user-specified attributes
         attrs.each { k, v ->
@@ -34,9 +35,10 @@ class ResourceTagLib {
     }
 
     static LINK_WRITERS = [
-        js: { url, constants, attrs ->
+        js: { url, constants, attrs, request ->
+            def environmentAwareUrl = getEnvironmentAwareUrl(request.contextPath,url)
             def o = new StringBuilder()
-            o << "<script src=\"${url}\" "
+            o << "<script src=\"${environmentAwareUrl}\" "
 
             // Output info from the mappings
             writeAttrs(constants, o)
@@ -46,9 +48,10 @@ class ResourceTagLib {
             return o    
         },
         
-        link: { url, constants, attrs ->
+        link: { url, constants, attrs, request ->
             def o = new StringBuilder()
-            o << "<link href=\"${url}\" "
+            def environmentAwareUrl = getEnvironmentAwareUrl(request.contextPath,url)
+            o << "<link href=\"${environmentAwareUrl}\" "
 
             // Output info from the mappings
             writeAttrs(constants, o)
@@ -58,6 +61,15 @@ class ResourceTagLib {
             return o
         }
     ]
+
+    private static String getEnvironmentAwareUrl(String contextPath, String url) {
+        def preprodEnvironments = CH.config?.grails?.resource?.preprod ?: DEFAULT_PREPROD_ENVIRONMENTS
+        if (preprodEnvironments.contains(Environment.currentEnvironment.name)) {
+            return url
+        }
+
+        return url.substring(contextPath.length())
+    }
 
     static SUPPORTED_TYPES = [
         css:[type:"text/css", rel:'stylesheet', media:'screen, projection'],
@@ -150,9 +162,9 @@ class ResourceTagLib {
         // Allow attrs to overwrite any constants
         attrs.each { typeInfo.remove(it.key) }
 
-        out << writer(uri, typeInfo, attrs)
+        out << writer(uri, typeInfo, attrs,request)
     }
-    
+
     /**
      * Render an appropriate resource link for a resource - WHETHER IT IS PROCESSED BY THIS PLUGIN OR NOT.
      *
